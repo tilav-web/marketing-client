@@ -11,6 +11,7 @@ import Dashboard from "./pages/dashboard";
 import Users from "./pages/users";
 import TasksPage from "./pages/tasks/tasks-page";
 import PrivateRoute from "./private/private-rote";
+import Diagram from "./pages/diagram/diagram";
 
 export default function App() {
   const { loading } = useSelector((state: RootState) => state.user);
@@ -50,6 +51,10 @@ export default function App() {
         {
           path: "tasks",
           element: <TasksPage />,
+        },
+        {
+          path: "diagram",
+          element: <Diagram />,
         },
       ],
     },

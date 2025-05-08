@@ -41,30 +41,35 @@ export default function Register() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
-      <Card className="w-full max-w-md">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-amber-50 to-orange-100 px-4 py-12 sm:px-6 lg:px-8">
+      <Card className="w-full max-w-md bg-gradient-to-br from-amber-50 to-orange-100 hover:shadow-lg transition-shadow">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">
+          <CardTitle className="text-2xl font-bold text-center text-orange-800">
             Create an account
           </CardTitle>
-          <CardDescription className="text-center">
+          <CardDescription className="text-center text-gray-700">
             Enter your information to create an account
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="name" className="text-orange-800">
+                Name
+              </Label>
               <Input
                 id="name"
                 placeholder="John Doe"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
+                className="border-gray-300 focus:border-orange-500 focus:ring-orange-500 text-gray-700 placeholder-gray-400"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-orange-800">
+                Email
+              </Label>
               <Input
                 id="email"
                 type="email"
@@ -72,10 +77,13 @@ export default function Register() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                className="border-gray-300 focus:border-orange-500 focus:ring-orange-500 text-gray-700 placeholder-gray-400"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-orange-800">
+                Password
+              </Label>
               <Input
                 id="password"
                 type="password"
@@ -83,19 +91,24 @@ export default function Register() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 placeholder="********"
+                className="border-gray-300 focus:border-orange-500 focus:ring-orange-500 text-gray-700 placeholder-gray-400"
               />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button
+              type="submit"
+              className="w-full bg-orange-500 hover:bg-orange-400 text-white shadow-md"
+              disabled={loading}
+            >
               {loading ? "Creating account..." : "Create account"}
             </Button>
           </form>
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <Separator className="w-full" />
+              <Separator className="w-full bg-orange-200" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
+              <span className="bg-amber-50 px-2 text-gray-700">
                 Or continue with
               </span>
             </div>
@@ -104,15 +117,15 @@ export default function Register() {
           <Button
             variant="outline"
             type="button"
-            className="w-full cursor-pointer p-0"
+            className="w-full cursor-pointer border-orange-300 bg-white text-orange-600 hover:bg-orange-50 hover:text-orange-700"
             disabled={loading}
           >
             <Link
-              to={"http://localhost:3000/auth/google/callback"}
+              to={"https://api.marketinghub.uz/auth/google/callback"}
               className="flex items-center justify-center gap-2 w-full h-full"
             >
               <svg
-                className="mr-2 h-4 w-4"
+                className="mr-2 h-4 w-4 text-orange-500"
                 aria-hidden="true"
                 focusable="false"
                 data-prefix="fab"
@@ -131,11 +144,11 @@ export default function Register() {
           </Button>
         </CardContent>
         <CardFooter className="flex justify-center">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-gray-700">
             Already have an account?{" "}
             <Link
               to="/login"
-              className="font-medium text-primary hover:underline"
+              className="font-medium text-orange-600 hover:text-orange-500 hover:underline"
             >
               Sign in
             </Link>

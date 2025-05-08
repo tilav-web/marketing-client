@@ -1,15 +1,14 @@
-import { apiUrl } from "@/utils/shared";
 import axios, {
   AxiosInstance,
-  AxiosRequestHeaders,
+  AxiosHeaders,
   InternalAxiosRequestConfig,
 } from "axios";
 
+import { apiUrl } from "@/utils/shared";
+
 const responseInstance = (instance: AxiosInstance) => {
   instance.interceptors.response.use(
-    (res) => {
-      return res;
-    },
+    (res) => res,
     (error) => {
       console.error(error);
       return Promise.reject(error);
@@ -22,25 +21,23 @@ const requestInstance = ({
   headers,
 }: {
   instance: AxiosInstance;
-  headers: AxiosRequestHeaders;
+  headers: AxiosHeaders;
 }) => {
   instance.interceptors.request.use(
-    async (
-      config: InternalAxiosRequestConfig
-    ): Promise<InternalAxiosRequestConfig> => {
-      return {
-        ...config,
-        headers,
-      };
+    async (config: InternalAxiosRequestConfig) => {
+      config.headers = headers;
+      return config;
     }
   );
 };
 
+// JSON uchun instance
 const privateInstance: AxiosInstance = axios.create({
   baseURL: apiUrl,
   withCredentials: true,
 });
 
+// Fayl (FormData) uchun instance
 const privateInstanceFile: AxiosInstance = axios.create({
   baseURL: apiUrl,
   withCredentials: true,
@@ -49,17 +46,17 @@ const privateInstanceFile: AxiosInstance = axios.create({
 responseInstance(privateInstance);
 requestInstance({
   instance: privateInstance,
-  headers: {
+  headers: new AxiosHeaders({
     "Content-Type": "application/json",
-  } as AxiosRequestHeaders,
+  }),
 });
 
 responseInstance(privateInstanceFile);
 requestInstance({
   instance: privateInstanceFile,
-  headers: {
+  headers: new AxiosHeaders({
     "Content-Type": "multipart/form-data",
-  } as AxiosRequestHeaders,
+  }),
 });
 
 export { privateInstance, privateInstanceFile };

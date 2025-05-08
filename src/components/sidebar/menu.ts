@@ -1,4 +1,4 @@
-import { Home, LucideProps, Table2, User } from "lucide-react";
+import { GitFork, Home, LucideProps, Table2, User } from "lucide-react";
 import { ForwardRefExoticComponent, RefAttributes } from "react";
 type Roles = "user" | "super_admin" | "admin";
 
@@ -14,6 +14,12 @@ export const menu: {
     link: "/dashboard",
     title: "Dashboard",
     icon: Home,
+    roles: ["admin", "super_admin", "user"],
+  },
+  {
+    link: "/dashboard/diagram",
+    title: "Diagram",
+    icon: GitFork,
     roles: ["admin", "super_admin", "user"],
   },
   {

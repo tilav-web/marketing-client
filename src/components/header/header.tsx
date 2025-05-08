@@ -20,7 +20,7 @@ export default function Header({ children }: { children: ReactNode }) {
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="font-bold">{user?.name}</p>
+            <p className="font-bold line-clamp-1">{user?.name}</p>
             <p className="text-sm">{user?.role}</p>
           </div>
         </div>
