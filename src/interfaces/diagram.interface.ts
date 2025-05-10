@@ -1,10 +1,10 @@
-import { IShape } from "./shape.interface";
+import { IEdge } from "./edges.interface";
+import { INode } from "./nodes.interface";
 
 export interface IDiagram {
   _id?: string;
-  name: string;
-  shapes: IShape[];
-  createdAt?: Date;
-  updatedAt?: Date;
-  userId?: string;
+  title: string;
+  nodes: INode[];
+  edges: IEdge[];
+  user: string;
 }

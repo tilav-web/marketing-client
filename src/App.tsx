@@ -12,6 +12,7 @@ import Users from "./pages/users";
 import TasksPage from "./pages/tasks/tasks-page";
 import PrivateRoute from "./private/private-rote";
 import Diagram from "./pages/diagram/diagram";
+import SubLayout from "./layouts/sub-layout";
 
 export default function App() {
   const { loading } = useSelector((state: RootState) => state.user);
@@ -52,10 +53,6 @@ export default function App() {
           path: "tasks",
           element: <TasksPage />,
         },
-        {
-          path: "diagram",
-          element: <Diagram />,
-        },
       ],
     },
     {
@@ -65,6 +62,16 @@ export default function App() {
     {
       path: "/register",
       element: <Register />,
+    },
+    {
+      path: "/sub",
+      element: <SubLayout />,
+      children: [
+        {
+          path: "diagram/:id",
+          element: <Diagram />,
+        },
+      ],
     },
   ]);
   return <RouterProvider router={router} />;

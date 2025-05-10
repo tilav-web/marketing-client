@@ -17,7 +17,7 @@ export const menu: {
     roles: ["admin", "super_admin", "user"],
   },
   {
-    link: "/dashboard/diagram",
+    link: "/sub/diagram",
     title: "Diagram",
     icon: GitFork,
     roles: ["admin", "super_admin", "user"],

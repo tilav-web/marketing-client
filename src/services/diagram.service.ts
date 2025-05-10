@@ -1,70 +1,93 @@
 import { privateInstance } from "@/api/api-client";
 import { IDiagram } from "@/interfaces/diagram.interface";
+import { AxiosError } from "axios";
 
 const API_ENDPOINT = "/diagrams";
 
 export class DiagramService {
-  // Fetch all diagrams
-  async fetchDiagrams(userId: string): Promise<IDiagram[]> {
+  // Get all diagrams for a user
+  async getUserDiagrams(id: string): Promise<IDiagram[]> {
     try {
-      const response = await privateInstance.get(`${API_ENDPOINT}/${userId}`);
+      const response = await privateInstance.get<IDiagram[]>(
+        `${API_ENDPOINT}/user/${id}`
+      );
       return response.data;
     } catch (error) {
-      throw new Error(`Failed to fetch diagrams: ${error}`);
+      const err = error as AxiosError;
+      throw new Error(
+        err.response?.status === 404
+          ? "No diagrams found for this user"
+          : "Failed to fetch diagrams"
+      );
     }
   }
 
-  async fetchById(id: string): Promise<IDiagram> {
+  // Get a specific diagram by ID
+  async getDiagramById(diagramId: string): Promise<IDiagram> {
     try {
-      const res = await privateInstance.get(`${API_ENDPOINT}/${id}`);
-      return res.data;
-    } catch (error) {
-      throw new Error(`Failed to fetch diagram: ${error}`);
-    }
-  }
-
-  // Fetch a single diagram by ID
-  async fetchDiagram(id: string): Promise<IDiagram> {
-    try {
-      const response = await privateInstance.get(`${API_ENDPOINT}/${id}`);
+      const response = await privateInstance.get<IDiagram>(
+        `${API_ENDPOINT}/${diagramId}`
+      );
       return response.data;
     } catch (error) {
-      throw new Error(`Failed to fetch diagram: ${error}`);
+      const err = error as AxiosError;
+      throw new Error(
+        err.response?.status === 404
+          ? "Diagram not found"
+          : "Failed to fetch diagram"
+      );
     }
   }
 
   // Create a new diagram
-  async createDiagram(diagram: IDiagram): Promise<IDiagram> {
+  async createDiagram(diagram: Partial<IDiagram>): Promise<IDiagram> {
     try {
-      const response = await privateInstance.post(
-        `${API_ENDPOINT}/${diagram.userId}`,
+      const response = await privateInstance.post<IDiagram>(
+        API_ENDPOINT,
         diagram
       );
       return response.data;
     } catch (error) {
-      throw new Error(`Failed to create diagram: ${error}`);
+      const err = error as AxiosError;
+      throw new Error(
+        err.response?.status === 401
+          ? "Unauthorized: Please log in"
+          : "Failed to create diagram"
+      );
     }
   }
 
-  // Update an existing diagram
-  async updateDiagram(id: string, diagram: IDiagram): Promise<IDiagram> {
+  // Save a diagram (create or update)
+  async saveDiagram(diagram: IDiagram): Promise<IDiagram> {
     try {
-      const response = await privateInstance.put(
-        `${API_ENDPOINT}/${id}`,
+      const response = await privateInstance.post<IDiagram>(
+        `${API_ENDPOINT}/save`,
         diagram
       );
       return response.data;
     } catch (error) {
-      throw new Error(`Failed to update diagram: ${error}`);
+      const err = error as AxiosError;
+      throw new Error(
+        err.response?.status === 400
+          ? "Invalid diagram data"
+          : err.response?.status === 401
+          ? "Unauthorized: Please log in"
+          : "Failed to save diagram"
+      );
     }
   }
 
   // Delete a diagram
-  async deleteDiagram(id: string): Promise<void> {
+  async deleteDiagram(diagramId: string): Promise<void> {
     try {
-      await privateInstance.delete(`${API_ENDPOINT}/${id}`);
+      await privateInstance.delete(`${API_ENDPOINT}/${diagramId}`);
     } catch (error) {
-      throw new Error(`Failed to delete diagram: ${error}`);
+      const err = error as AxiosError;
+      throw new Error(
+        err.response?.status === 404
+          ? "Diagram not found"
+          : "Failed to delete diagram"
+      );
     }
   }
 }

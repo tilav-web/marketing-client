@@ -1,181 +1,211 @@
 "use client";
 
-import { useCallback, useEffect, useState, useRef } from "react";
+import type React from "react";
+
+import { useCallback, useState, useEffect } from "react";
 import ReactFlow, {
   Background,
   Controls,
+  type Edge,
   MiniMap,
-  ReactFlowProvider,
+  type Node,
+  type Connection,
+  addEdge,
   useNodesState,
   useEdgesState,
-  addEdge,
-  type Connection,
-  type Edge,
-  type Node,
-  type NodeTypes,
-  ConnectionLineType,
-  useReactFlow,
+  Panel,
+  ReactFlowProvider,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import ShapeNode from "./shape-node";
-import ShapeControls from "./shape-controls";
-import { Button } from "@/components/ui/button";
-import { Plus, Save } from "lucide-react";
-import { IDiagram } from "@/interfaces/diagram.interface";
-import { IShape } from "@/interfaces/shape.interface";
-import { diagramService } from "@/services/diagram.service";
-import { shapeService } from "@/services/shape.service";
 
-const nodeTypes: NodeTypes = {
-  shape: ShapeNode,
+import DiagramList from "./diagram-list";
+import CustomNode from "./custom-node";
+import CustomEdge from "./custom-edge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Save, Plus, Trash2 } from "lucide-react";
+import { SubSidebar } from "./sub-sidebar";
+import { INode } from "@/interfaces/nodes.interface";
+import { IEdge } from "@/interfaces/edges.interface";
+import { IDiagram } from "@/interfaces/diagram.interface";
+import { toast } from "sonner";
+import { diagramService } from "@/services/diagram.service";
+import { useSelector } from "react-redux";
+import { RootState } from "@/app/store";
+import { AxiosError } from "axios";
+import { nodesService } from "@/services/nodes.service";
+import { edgesService } from "@/services/edges.service";
+import { useParams } from "react-router-dom";
+
+// Node types definition
+const nodeTypes = {
+  custom: CustomNode,
 };
 
-interface DiagramEditorProps {
-  diagramId: string;
-  onDiagramUpdate: (diagram: IDiagram) => void;
-}
+// Edge types definition
+const edgeTypes = {
+  custom: CustomEdge,
+};
 
-function DiagramEditorContent({
-  diagramId,
-  onDiagramUpdate,
-}: DiagramEditorProps) {
-  const [diagram, setDiagram] = useState<IDiagram | null>(null);
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const reactFlowInstance = useReactFlow();
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+// Initial diagram data
+const initialNodes: INode[] = [];
 
-  // Load diagram data
+const initialEdges: IEdge[] = [];
+
+function DiagramEditorContent() {
+  // State for diagram title
+  const [title, setTitle] = useState<string>("Untitled Diagram");
+
+  // State for user's diagrams
+  const [userDiagrams, setUserDiagrams] = useState<IDiagram[]>([]);
+
+  // State for loading status
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  // State for nodes and edges
+  const [nodes, setNodes, onNodesChange] = useNodesState(
+    initialNodes as INode[]
+  );
+  const [edges, setEdges, onEdgesChange] = useEdgesState(
+    initialEdges as IEdge[]
+  );
+
+  // State for selected elements
+  const [selectedNode, setSelectedNode] = useState<INode | null>(null);
+  const [selectedEdge, setSelectedEdge] = useState<IEdge | null>(null);
+
+  const { user } = useSelector((state: RootState) => state.user);
+
+  const { id: diagramId } = useParams();
+
+  // ReactFlow instance
+  // const reactFlowInstance = useReactFlow();
+
   useEffect(() => {
-    const loadDiagram = async () => {
-      setLoading(true);
+    (async () => {
       try {
-        const data = await diagramService.fetchDiagram(diagramId);
-        setDiagram(data);
-        const shapes = await shapeService.fetchShapesByDiagramId(diagramId);
+        if (!diagramId) return;
 
-        // Convert shapes to nodes
-        const diagramNodes = shapes.map((shape: IShape) => ({
-          id: shape._id as string,
-          type: "shape",
-          position: shape.position,
-          data: {
-            ...shape,
-            onChange: handleShapeChange,
-          },
-        }));
+        const fetchedDiagram = await diagramService.getDiagramById(diagramId);
 
-        // Create edges from united shapes
-        const diagramEdges: Edge[] = [];
-        shapes.forEach((shape: IShape) => {
-          if (shape.united && shape.united.length > 0) {
-            shape.united.forEach((connection) => {
-              diagramEdges.push({
-                id: `${shape._id}-${connection.id}`,
-                source: shape._id as string,
-                target: connection.id,
-                sourceHandle: connection.part,
-                type: "smoothstep",
-              });
-            });
-          }
+        setTitle(fetchedDiagram.title);
+        setSelectedNode(null);
+        setSelectedEdge(null);
+
+        const nodes = Array.isArray(fetchedDiagram.nodes)
+          ? fetchedDiagram.nodes.map((node: INode) => ({
+              ...node,
+              id: node.id || node._id,
+              type: node.type || "custom",
+              position: node.position,
+              data: node.data,
+            }))
+          : [];
+
+        const edges = Array.isArray(fetchedDiagram.edges)
+          ? fetchedDiagram.edges.map((edge: IEdge) => ({
+              ...edge,
+              id: edge.id || edge._id,
+              type: edge.type || "custom",
+              source: edge.source,
+              target: edge.target,
+              data: edge.data,
+            }))
+          : [];
+
+        setNodes(nodes as INode[]);
+        setEdges(edges as IEdge[]);
+
+        toast.success("Diagram Loaded", {
+          description: `Loaded "${fetchedDiagram.title}"`,
         });
-
-        setNodes(diagramNodes);
-        setEdges(diagramEdges);
-        setLoading(false);
       } catch (error) {
-        console.error("Failed to load diagram:", error);
-        setLoading(false);
+        const err = error as AxiosError;
+        toast.error("Error loading diagram", {
+          description:
+            err.response?.status === 404
+              ? "Diagram not found"
+              : "Failed to load diagram",
+        });
       }
-    };
+    })();
+  }, [diagramId, setEdges, setNodes]);
 
-    if (diagramId) {
-      loadDiagram();
-    }
-  }, [diagramId, setNodes, setEdges]);
-
-  // Clear timeout on unmount
+  // Fetch user's diagrams on component mount
   useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
+    const fetchUserDiagrams = async () => {
+      try {
+        if (!user?._id) {
+          toast("Error", { description: "User not authenticated" });
+          setIsLoading(false);
+          return;
+        }
+        const data = await diagramService.getUserDiagrams(user._id);
+        setUserDiagrams(data);
+        setIsLoading(false);
+      } catch (error) {
+        console.error("Error fetching diagrams:", error);
+        toast("Error", { description: "Failed to load your diagrams" });
+        setIsLoading(false);
       }
     };
-  }, []);
+
+    fetchUserDiagrams();
+  }, [user?._id]);
 
   // Handle node selection
-  const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
-    setSelectedNode(node);
+  const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+    setSelectedNode(node as INode);
+    setSelectedEdge(null);
   }, []);
 
-  // Handle background click to deselect
-  const onPaneClick = useCallback(() => {
+  // Handle edge selection
+  const onEdgeClick = useCallback((_: React.MouseEvent, edge: Edge) => {
+    setSelectedEdge(edge as IEdge);
     setSelectedNode(null);
   }, []);
 
-  // Handle connection between nodes
+  // Handle background click (deselect all)
+  const onPaneClick = useCallback(() => {
+    setSelectedNode(null);
+    setSelectedEdge(null);
+  }, []);
+
+  // Handle edge connections
   const onConnect = useCallback(
-    (connection: Connection) => {
-      // Create edge
-      setEdges((eds) =>
-        addEdge(
-          {
-            ...connection,
-            type: "smoothstep",
+    async (connection: Connection) => {
+      const newEdge = {
+        ...connection,
+        id: `e${connection.source}-${connection.target}`,
+        type: "custom",
+        data: {
+          label: "",
+          animated: false,
+          style: {
+            stroke: "#64748b",
+            strokeWidth: 2,
           },
-          eds
-        )
-      );
+        },
+      };
 
-      // Update the united property in the source shape
-      if (connection.source && connection.target && connection.sourceHandle) {
-        setNodes((nds) => {
-          return nds.map((node) => {
-            if (node.id === connection.source) {
-              const nodeData = node.data;
-              const united = nodeData.united || [];
+      if (!newEdge.source || !newEdge.target || !newEdge.id || !diagramId)
+        return;
 
-              // Check if connection already exists
-              const connectionExists = united.some(
-                (u: {
-                  id: string;
-                  part: "top" | "bottom" | "left" | "right";
-                }) =>
-                  u.id === connection.target &&
-                  u.part === connection.sourceHandle
-              );
+      const data = await edgesService.createEdges({
+        source: newEdge.source,
+        target: newEdge.target,
+        id: newEdge.id,
+        diagram: diagramId,
+      });
 
-              if (!connectionExists) {
-                return {
-                  ...node,
-                  data: {
-                    ...nodeData,
-                    united: [
-                      ...united,
-                      {
-                        id: connection.target,
-                        part: connection.sourceHandle,
-                      },
-                    ],
-                  },
-                };
-              }
-            }
-            return node;
-          });
-        });
-      }
+      setEdges((eds) => addEdge(data, eds));
     },
-    [setEdges, setNodes]
+    [setEdges]
   );
 
-  // Handle shape changes
-  const handleShapeChange = useCallback(
-    async (id: string, updates: Partial<IShape>) => {
+  // Update node data
+  const updateNodeData = useCallback(
+    (id: string, data: Partial<INode>) => {
       setNodes((nds) =>
         nds.map((node) => {
           if (node.id === id) {
@@ -183,178 +213,300 @@ function DiagramEditorContent({
               ...node,
               data: {
                 ...node.data,
-                ...updates,
-                onChange: handleShapeChange,
+                ...data,
               },
             };
           }
           return node;
         })
       );
-
-      try {
-        await shapeService.updateShape(id, updates);
-      } catch (error) {
-        console.error("Failed to update shape:", error);
-      }
-
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-
-      saveTimeoutRef.current = setTimeout(() => {
-        handleSaveDiagram();
-      }, 2000);
     },
     [setNodes]
   );
 
-  // Add a new shape
-  const handleAddShape = useCallback(async () => {
-    const position = reactFlowInstance.project({
-      x: Math.random() * 300 + 50,
-      y: Math.random() * 300 + 50,
-    });
+  // Update edge data
+  const updateEdgeData = useCallback(
+    (id: string, data: Partial<IEdge>) => {
+      setEdges((eds) =>
+        eds.map((edge) => {
+          if (edge.id === id) {
+            return {
+              ...edge,
+              data: {
+                ...edge.data,
+                ...data,
+              },
+            };
+          }
+          return edge;
+        })
+      );
+    },
+    [setEdges]
+  );
 
-    const newShape: IShape = {
-      content: "New Shape",
+  // Add a new node
+  const addNode = useCallback(async () => {
+    const id = `${nodes.length + 1}-${Date.now()}`;
+    if (!diagramId) {
+      toast.error("No diagram selected", {
+        description: "Please create or load a diagram first",
+      });
+      return;
+    }
+
+    const newNode: INode = {
+      id,
       diagram: diagramId,
-      size: { width: 120, height: 30 },
-      colors: { background: "#4dabf7", text: "#ffffff" },
-      position: position,
-      united: [],
+      type: "custom",
+      position: {
+        x: 250,
+        y: 100 + nodes.length * 100,
+      },
+      data: {
+        label: `Node ${nodes.length + 1}`,
+        width: 150,
+        height: 60,
+        backgroundColor: "#f8fafc",
+        color: "#0f172a",
+        rotate: 0,
+      },
     };
 
-    try {
-      const createdShape = await shapeService.createShape(newShape);
+    const data: INode = await nodesService.createNodes(newNode);
 
-      setNodes((nds) => [
-        ...nds,
-        {
-          id: createdShape._id as string,
-          type: "shape",
-          position: createdShape.position,
-          data: {
-            ...createdShape,
-            onChange: handleShapeChange,
-          },
-        },
-      ]);
-    } catch (error) {
-      console.error("Failed to create shape:", error);
+    setNodes((nds) => [...nds, data]);
+  }, [nodes, setNodes]);
+
+  // Delete selected element
+  const deleteSelected = useCallback(async () => {
+    if (selectedNode && selectedNode._id && diagramId) {
+      await nodesService.deleteNodes({
+        node: selectedNode._id,
+        diagram: diagramId,
+      });
+      setNodes((nds) => nds.filter((node) => node.id !== selectedNode.id));
+      setSelectedNode(null);
     }
-  }, [reactFlowInstance, setNodes, handleShapeChange]);
+    if (selectedEdge) {
+      setEdges((eds) => eds.filter((edge) => edge.id !== selectedEdge.id));
+      setSelectedEdge(null);
+    }
+  }, [selectedNode, selectedEdge, setNodes, setEdges]);
 
-  const onNodesDelete = useCallback(async (deleted: Node[]) => {
-    for (const node of deleted) {
-      try {
-        await shapeService.deleteShape(node.id);
-      } catch (error) {
-        console.error("Failed to delete shape:", error);
+  // Create a new diagram
+  const createNewDiagram = useCallback(async () => {
+    try {
+      if (!user?._id) {
+        toast.error("Authentication required", {
+          description: "Please log in to create a diagram",
+        });
+        return;
       }
-    }
-  }, []);
-
-  // Save diagram to server
-  const handleSaveDiagram = async () => {
-    if (!diagram) return;
-
-    setSaving(true);
-
-    try {
-      const shapes: IShape[] = nodes.map((node) => {
-        const { onChange, ...shapeData } = node.data;
-        console.log(onChange);
-        return {
-          ...shapeData,
-          position: node.position,
-        };
+      const newDiagram: IDiagram = await diagramService.createDiagram({
+        user: user._id,
+        title: "Untitled Diagram",
+        nodes: [],
+        edges: [],
       });
 
-      const updatedDiagram: IDiagram = { ...diagram };
-      const savedDiagram = await diagramService.updateDiagram(
-        diagramId,
-        updatedDiagram
-      );
-      await shapeService.updateMany(shapes);
-      setDiagram(savedDiagram);
-      onDiagramUpdate(savedDiagram);
-      setSaving(false);
-    } catch (error) {
-      console.error("Failed to save diagram:", error);
-      setSaving(false);
-    }
-  };
+      setTitle(newDiagram.title);
+      setNodes([]);
+      setEdges([]);
+      setUserDiagrams((prev) => [...prev, newDiagram]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full text-gray-400">
-        Loading diagram...
-      </div>
-    );
-  }
+      toast.success("New Diagram Created", {
+        description: "Started a new diagram",
+      });
+    } catch (error) {
+      const err = error as AxiosError;
+      toast.error("Error creating diagram", {
+        description:
+          err.response?.status === 401
+            ? "Unauthorized access"
+            : "Failed to create diagram",
+      });
+    }
+  }, [user?._id, setNodes, setEdges]);
+
+  // Save the current diagram
+  const saveDiagram = useCallback(async () => {
+    try {
+      if (!user?._id) {
+        toast.error("Authentication required", {
+          description: "Please log in to save the diagram",
+        });
+        return;
+      }
+
+      setIsLoading(true);
+
+      const diagramData: IDiagram = {
+        _id: diagramId,
+        title,
+        nodes: nodes.map((node) => ({
+          id: node.id,
+          type: node.type ?? "custom",
+          position: node.position,
+          data: node.data,
+          diagram: diagramId ?? "",
+        })),
+        edges: edges.map((edge) => ({
+          id: edge.id,
+          source: edge.source,
+          target: edge.target,
+          type: edge.type,
+          data: edge.data,
+        })),
+        user: user._id,
+      };
+
+      const savedDiagram = await diagramService.saveDiagram(diagramData);
+
+      setUserDiagrams((prevDiagrams) =>
+        diagramId
+          ? prevDiagrams.map((d) => (d._id === diagramId ? savedDiagram : d))
+          : [...prevDiagrams, savedDiagram]
+      );
+
+      setIsLoading(false);
+      toast.success("Diagram Saved", {
+        description: `"${title}" has been saved successfully`,
+      });
+    } catch (error) {
+      const err = error as AxiosError;
+      setIsLoading(false);
+      toast.error("Error saving diagram", {
+        description:
+          err.response?.status === 400
+            ? "Invalid diagram data"
+            : "Failed to save diagram",
+      });
+    }
+  }, [diagramId, title, nodes, edges, user?._id, userDiagrams]);
+
+  // Delete a diagram
+  const deleteDiagram = useCallback(
+    async (diagramId: string) => {
+      try {
+        setIsLoading(true);
+
+        await diagramService.deleteDiagram(diagramId);
+
+        setUserDiagrams((prevDiagrams) =>
+          prevDiagrams.filter((d) => d._id !== diagramId)
+        );
+
+        // If the current diagram is deleted, create a new one
+        if (diagramId === diagramId) {
+          createNewDiagram();
+        }
+
+        setIsLoading(false);
+        toast("Diagram Deleted", {
+          description: "The diagram has been deleted",
+        });
+      } catch (error) {
+        console.error("Error deleting diagram:", error);
+        setIsLoading(false);
+        toast("Error", {
+          description: "Failed to delete diagram",
+        });
+      }
+    },
+    [diagramId, createNewDiagram, toast]
+  );
 
   return (
-    <div className="h-full">
-      <div className="absolute top-4 right-4 z-10 flex gap-2">
-        <Button size="sm" variant="outline" onClick={handleAddShape}>
-          <Plus className="h-4 w-4 mr-1" />
-          Add Shape
-        </Button>
-        <Button
-          size="sm"
-          variant="default"
-          onClick={handleSaveDiagram}
-          disabled={saving}
+    <div className="w-screen h-screen flex">
+      {/* Left sidebar - List of user's diagrams */}
+      <DiagramList
+        diagrams={userDiagrams}
+        onCreateNew={createNewDiagram}
+        onDeleteDiagram={deleteDiagram}
+        isLoading={isLoading}
+      />
+
+      {/* Main diagram area */}
+      <div className="flex-1 h-full">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onNodeClick={onNodeClick}
+          onEdgeClick={onEdgeClick}
+          onPaneClick={onPaneClick}
+          nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          fitView
+          snapToGrid
+          snapGrid={[15, 15]}
         >
-          <Save className="h-4 w-4 mr-1" />
-          {saving ? "Saving..." : "Save"}
-        </Button>
+          <Background />
+          <Controls />
+          <MiniMap />
+
+          {/* Top toolbar */}
+          <Panel
+            position="top-center"
+            className="bg-white/80 backdrop-blur-sm p-2 rounded-md shadow-md flex items-center gap-2"
+          >
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-64"
+              placeholder="Diagram Title"
+            />
+            <Button
+              onClick={saveDiagram}
+              size="sm"
+              className="flex items-center gap-1"
+              disabled={isLoading}
+            >
+              <Save className="h-4 w-4" />
+              Save
+            </Button>
+            <Button
+              onClick={addNode}
+              size="sm"
+              variant="outline"
+              className="flex items-center gap-1"
+            >
+              <Plus className="h-4 w-4" />
+              Add Node
+            </Button>
+            <Button
+              onClick={deleteSelected}
+              size="sm"
+              variant="destructive"
+              disabled={!selectedNode && !selectedEdge}
+              className="flex items-center gap-1"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete
+            </Button>
+          </Panel>
+        </ReactFlow>
       </div>
 
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onNodeClick={onNodeClick}
-        onPaneClick={onPaneClick}
-        nodeTypes={nodeTypes}
-        connectionLineType={ConnectionLineType.SmoothStep}
-        defaultViewport={{ x: 0, y: 0, zoom: 1 }}
-        minZoom={0.2}
-        maxZoom={4}
-        fitView
-        attributionPosition="bottom-left"
-        className="bg-gray-900"
-        onNodesDelete={onNodesDelete}
-      >
-        <Background color="#444" gap={16} size={1} />
-        <Controls className="bg-gray-800 text-white border-gray-700" />
-        <MiniMap
-          nodeStrokeColor={() => "#fff"}
-          nodeColor={() => "#4dabf7"}
-          maskColor="rgba(0, 0, 0, 0.5)"
-          className="bg-gray-800 border-gray-700"
-        />
-      </ReactFlow>
-
-      {selectedNode && (
-        <ShapeControls
-          node={selectedNode}
-          onChange={handleShapeChange}
-          onClose={() => setSelectedNode(null)}
-        />
-      )}
+      {/* Right sidebar - Properties panel */}
+      <SubSidebar
+        selectedNode={selectedNode}
+        selectedEdge={selectedEdge}
+        updateNodeData={updateNodeData}
+        updateEdgeData={updateEdgeData}
+      />
     </div>
   );
 }
 
-export default function DiagramEditor(props: DiagramEditorProps) {
+// Wrap with ReactFlowProvider to access ReactFlow context
+export default function DiagramEditor() {
   return (
     <ReactFlowProvider>
-      <DiagramEditorContent {...props} />
+      <DiagramEditorContent />
     </ReactFlowProvider>
   );
 }
