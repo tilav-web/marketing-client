@@ -35,7 +35,7 @@ import { RootState } from "@/app/store";
 import { AxiosError } from "axios";
 import { nodesService } from "@/services/nodes.service";
 import { edgesService } from "@/services/edges.service";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 // Node types definition
 const nodeTypes = {
@@ -77,6 +77,7 @@ function DiagramEditorContent() {
   const { user } = useSelector((state: RootState) => state.user);
 
   const { id: diagramId } = useParams();
+  const navigate = useNavigate();
 
   // ReactFlow instance
   // const reactFlowInstance = useReactFlow();
@@ -205,23 +206,29 @@ function DiagramEditorContent() {
 
   // Update node data
   const updateNodeData = useCallback(
-    (id: string, data: Partial<INode>) => {
-      setNodes((nds) =>
-        nds.map((node) => {
-          if (node.id === id) {
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                ...data,
-              },
-            };
-          }
-          return node;
-        })
+    (id: string, updatedFields: Partial<INode>) => {
+      setNodes((prevNodes) =>
+        prevNodes.map((node) =>
+          node.id === id
+            ? {
+                ...node,
+                ...updatedFields,
+                data: {
+                  ...node.data,
+                  ...updatedFields.data,
+                },
+                position: updatedFields.position
+                  ? {
+                      ...node.position,
+                      ...updatedFields.position,
+                    }
+                  : node.position,
+              }
+            : node
+        )
       );
     },
-    [setNodes]
+    []
   );
 
   // Update edge data
@@ -234,7 +241,11 @@ function DiagramEditorContent() {
               ...edge,
               data: {
                 ...edge.data,
-                ...data,
+                ...data.data,
+                style: {
+                  ...edge.data?.style,
+                  ...data.data?.style,
+                },
               },
             };
           }
@@ -288,7 +299,11 @@ function DiagramEditorContent() {
       setNodes((nds) => nds.filter((node) => node.id !== selectedNode.id));
       setSelectedNode(null);
     }
-    if (selectedEdge) {
+    if (selectedEdge && selectedEdge._id && diagramId) {
+      await edgesService.deleteEdges({
+        edge: selectedEdge._id,
+        diagram: diagramId,
+      });
       setEdges((eds) => eds.filter((edge) => edge.id !== selectedEdge.id));
       setSelectedEdge(null);
     }
@@ -387,25 +402,24 @@ function DiagramEditorContent() {
 
   // Delete a diagram
   const deleteDiagram = useCallback(
-    async (diagramId: string) => {
+    async (id: string) => {
       try {
         setIsLoading(true);
 
-        await diagramService.deleteDiagram(diagramId);
+        await diagramService.deleteDiagram(id);
 
         setUserDiagrams((prevDiagrams) =>
-          prevDiagrams.filter((d) => d._id !== diagramId)
+          prevDiagrams.filter((d) => d._id !== id)
         );
-
-        // If the current diagram is deleted, create a new one
-        if (diagramId === diagramId) {
-          createNewDiagram();
-        }
 
         setIsLoading(false);
         toast("Diagram Deleted", {
           description: "The diagram has been deleted",
         });
+
+        if (id === diagramId) {
+          navigate("/sub/diagram");
+        }
       } catch (error) {
         console.error("Error deleting diagram:", error);
         setIsLoading(false);
@@ -414,7 +428,7 @@ function DiagramEditorContent() {
         });
       }
     },
-    [diagramId, createNewDiagram, toast]
+    [createNewDiagram, toast]
   );
 
   return (

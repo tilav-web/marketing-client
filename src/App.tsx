@@ -68,6 +68,10 @@ export default function App() {
       element: <SubLayout />,
       children: [
         {
+          path: "diagram",
+          element: <Diagram />,
+        },
+        {
           path: "diagram/:id",
           element: <Diagram />,
         },

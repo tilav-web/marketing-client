@@ -24,8 +24,8 @@ function CustomEdge({
   });
 
   const edgeStyle = {
-    stroke: data?.data?.style?.stroke || "#64748b",
-    strokeWidth: data?.data?.style?.strokeWidth || 2,
+    stroke: data?.style?.stroke || "#64748b",
+    strokeWidth: data?.style?.strokeWidth || 2,
     ...style,
   };
 
@@ -34,13 +34,11 @@ function CustomEdge({
       <path
         id={id}
         style={edgeStyle}
-        className={`react-flow__edge-path ${
-          data?.data?.animated ? "animate-dash" : ""
-        }`}
+        className={`react-flow__edge-path ${data?.animated ? "animate-dash" : ""}`}
         d={edgePath}
         markerEnd={markerEnd}
       />
-      {data?.data?.label && (
+      {data?.label && (
         <text>
           <textPath
             href={`#${id}`}
@@ -50,7 +48,7 @@ function CustomEdge({
             dominantBaseline="middle"
             className="text-xs"
           >
-            {data.data?.label}
+            {data.label}
           </textPath>
         </text>
       )}

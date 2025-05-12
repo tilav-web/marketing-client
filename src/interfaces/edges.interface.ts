@@ -14,4 +14,10 @@ export interface IEdge {
   target: string;
   type?: string;
   data?: EdgeData;
+  label?: string;
+  animated?: boolean;
+  style?: {
+    stroke?: string;
+    strokeWidth?: number;
+  };
 }

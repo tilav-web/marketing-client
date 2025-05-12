@@ -22,6 +22,13 @@ export class EdgesService {
     });
     return res.data;
   }
+
+  async deleteEdges({ edge, diagram }: { edge: string; diagram: string }) {
+    const res = await privateInstance.delete(
+      `${API_ENDPOINT}/${edge}/${diagram}`
+    );
+    return res.data;
+  }
 }
 
 export const edgesService = new EdgesService();
